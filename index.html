@@ -1,0 +1,677 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UFM Share-Station Pro</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- React & ReactDOM -->
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <!-- Babel -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+        body { font-family: 'Plus Jakarta Sans', sans-serif; scroll-behavior: smooth; }
+        
+        .modal-animate { animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1); }
+        @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        
+        .animate-fade-in { animation: fadeIn 0.3s ease-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateX(10px); } to { opacity: 1; transform: translateX(0); } }
+        
+        .product-frame {
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            border: 1px solid #e2e8f0;
+            background: white;
+        }
+        .product-frame:hover {
+            border-color: #2563eb;
+            transform: translateY(-12px);
+            box-shadow: 0 25px 50px -12px rgba(37, 99, 235, 0.15);
+        }
+
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #f1f5f9; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; border: 2px solid #f1f5f9; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            75% { transform: translateX(5px); }
+        }
+        .animate-shake { animation: shake 0.2s ease-in-out 0s 2; }
+        
+        input::-webkit-outer-spin-button,
+        input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-900">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useMemo, useRef } = React;
+
+        // --- HỆ THỐNG ICON SVG ---
+        const IconSearch = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>;
+        const IconChevron = ({ dir = "down", size = 16 }) => {
+            const paths = {
+                down: "m6 9 6 6 6-6",
+                right: "m9 18 6-6-6-6",
+                left: "m15 18-6-6 6-6"
+            };
+            return <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d={paths[dir]}/></svg>;
+        };
+        const IconBook = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1-2.5-2.5Z"/><path d="M8 7h6"/></svg>;
+        const IconTool = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m14.7 6.3-2.8 2.8l-1.4-1.4l2.8-2.8c.4-.4.4-1 0-1.4l-1.4-1.4c-.4-.4-1-.4-1.4 0L6.3 6.3c-.4.4-.4 1 0 1.4l1.4 1.4c.4.4 1 .4 1.4 0l1.4-1.4l2.8 2.8l-1.4 1.4l2.8 2.8c.4.4 1 .4 1.4 0l1.4-1.4c.4-.4.4-1 0-1.4l-1.4-1.4Z"/></svg>;
+        const IconCheck = ({ size = 20 }) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5"/></svg>;
+        const IconStar = ({ fill = "none", size = 20 }) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill={fill} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>;
+        const IconLogOut = ({ size = 20 }) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>;
+        const IconX = ({ size = 24 }) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>;
+        const IconArrowRight = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>;
+        const IconUser = ({ size }) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>;
+        const IconCamera = ({ className }) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg>;
+        const IconQrCode = ({ size, className }) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><rect width="5" height="5" x="3" y="3" rx="1"/><rect width="5" height="5" x="16" y="3" rx="1"/><rect width="5" height="5" x="3" y="16" rx="1"/><path d="M21 16h-3a2 2 0 0 0-2 2v3"/><path d="M21 21v.01"/><path d="M12 7v3a2 2 0 0 1-2 2H7"/><path d="M3 12h.01"/><path d="M12 3h.01"/><path d="M12 16v.01"/><path d="M16 12h1"/><path d="M21 12v.01"/><path d="M12 21v-1"/></svg>;
+
+        const subjects = [
+            "Tất cả môn học",
+            "Triết học Mác - Lênin",
+            "Kinh tế chính trị Mác - Lênin",
+            "Chủ nghĩa xã hội khoa học",
+            "Lịch sử Đảng Cộng sản VN",
+            "Tư tưởng Hồ Chí Minh",
+            "Toán cao cấp",
+            "Xác suất thống kê",
+            "Pháp luật đại cương",
+            "Kinh tế vi mô",
+            "Kinh tế vĩ mô",
+            "Tin học đại cương",
+            "Tiếng Anh 1",
+            "Tiếng Anh 2"
+        ];
+
+        const App = () => {
+            const [isModalOpen, setIsModalOpen] = useState(false);
+            const [selectedProduct, setSelectedProduct] = useState(null);
+            const [step, setStep] = useState(1);
+            const [searchQuery, setSearchQuery] = useState('');
+            const [activeCategory, setActiveCategory] = useState('All');
+            
+            const [selectedSubject, setSelectedSubject] = useState('Tất cả môn học');
+            const [priceRange, setPriceRange] = useState({ min: '', max: '' });
+            
+            const featuredSectionRef = useRef(null);
+
+            const [currentUser, setCurrentUser] = useState(null);
+            const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
+            const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+            const [loginData, setLoginData] = useState({ username: '', password: '' });
+            const [loginError, setLoginError] = useState('');
+
+            const [newItem, setNewItem] = useState({ title: '', cat: 'Sách', price: '', status: 'Như mới', image: null });
+
+            const [products, setProducts] = useState([
+                { id: 1, title: "Giáo trình Kinh tế vi mô", price: 50000, status: "Đã dùng", seller: "Linh Nguyen", image: "https://thinhvuongvietnam.com/Content/UploadFiles/EditorFiles/images/2021/Quy1/kinh-te-hoc-vi-mo10012021112719.jpg", cat: "Sách", subject: "Kinh tế vi mô" },
+                { id: 2, title: "Máy tính Casio fx-580VN X", price: 150000, status: "Như mới", seller: "Minh Pham", image: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTGuLM3ve1KGtb-U8ambqtFwyIESwdMckJamw&s", cat: "Dụng cụ", subject: "" },
+                { id: 3, title: "Bản combo tài liệu cũ", price: 100000, status: "Đã dùng", seller: "Hoa Tran", image: "https://images.unsplash.com/photo-1503387762-592deb58ef4e?w=500&q=80", cat: "Dụng cụ", subject: "" },
+                { id: 4, title: "combo 10 vở trắng", price: 45000, status: "Mới 100%", seller: "Tuấn Anh", image: "https://encrypted-tbn0.gstatic.com/shopping?q=tbn:ANd9GcS2ShGUrDZ42JmUog8zmSuUXNmVBYjll6gNUJCjZPB7ke3iqOw_XtrV9LBSGDXoPsqaZCu1O6iqTzah5ZuRXNncbhjY9jBZW8MZvPwqWVQ&usqp=CAc", cat: "Dụng cụ", subject: "" },
+                { id: 5, title: "Đèn bàn học chống cận", price: 220000, status: "Như mới", seller: "Hoàng Yến", image: "https://encrypted-tbn3.gstatic.com/shopping?q=tbn:ANd9GcRu2gcbNrDj9PCPphnrG0HpooBwzNuHtihZywlE13Pen0wrdrPplzGURbp5puUUJBZ9AGiZGE2NPWW53O6q3vR6ekzUoSogg8e4wPpOt8BfvwoS0LAl1D1o&usqp=CAc", cat: "Dụng cụ", subject: "" },
+                { id: 6, title: "Balo UFM Limited Edition", price: 0, status: "Đã dùng", seller: "CLB Tình Nguyện", image: "https://shop.ufm.edu.vn/images/products/3dac85a0-7a34-4cf8-ac5d-9273f2b42a05_BaloUFM.png", cat: "Tặng", subject: "" },
+                { id: 7, title: "Bút vẽ kỹ thuật Artline 0.5", price: 15000, status: "Mới", seller: "Văn Phòng Phẩm", image: "https://images.unsplash.com/photo-1583485088034-697b5bc54ccd?w=500&q=80", cat: "Dụng cụ", subject: "" },
+                { id: 8, title: "Tài liệu Marketing căn bản", price: 20000, status: "Đã dùng", seller: "Thảo Vy", image: "https://i0.wp.com/clbketnoitre.wordpress.com/wp-content/uploads/2023/08/sach-mkt-cb.jpg?fit=809%2C1200&ssl=1&w=640", cat: "Tài liệu", subject: "Marketing" },
+                { id: 9, title: "Sách toán kinh tế", price: 60000, status: "Đã dùng", seller: "Quốc Bảo", image: "https://hoc247.net/fckeditorimg/upload/images/2019-06-24_150037.png?enablejsapi=1", cat: "Sách", subject: "Toán cao cấp" },
+                { id: 10, title: "Mũ UFM", price: 45000, status: "Như mới", seller: "Lan Phương", image: "https://shop.ufm.edu.vn/images/products/ac07299a-1ed7-4393-94f1-4985acb676df_z7111827238329_89c2067f33d09c44f791bb7b088e09fd.jpg", cat: "Dụng cụ", subject: "" },
+                { id: 11, title: "Áo UFM", price: 80000, status: "Mới 100%", seller: "Hải Đăng", image: "https://uvi.vn/wp-content/uploads/2021/07/dong-phuc-truyen-thong-UFM.jpg", cat: "Dụng cụ", subject: "" },
+                { id: 12, title: "Đồ thể dục UFM", price: 120000, status: "Đã dùng", seller: "Gia Hân", image: "https://cdn.haitrieu.com/wp-content/uploads/2021/12/hinh-anh-thuc-te-dong-phuc-truong-dai-hoc-tai-chinh-marketing.png", cat: "Dụng cụ", subject: "" },
+            ]);
+
+            const filteredProducts = useMemo(() => {
+                return products.filter(product => {
+                    const matchSearch = product.title.toLowerCase().includes(searchQuery.toLowerCase());
+                    const matchCategory = activeCategory === 'All' || product.cat === activeCategory;
+                    
+                    const matchSubject = selectedSubject === 'Tất cả môn học' || (product.subject && product.subject === selectedSubject);
+                    
+                    const minP = priceRange.min !== '' ? parseInt(priceRange.min) : 0;
+                    const maxP = priceRange.max !== '' ? parseInt(priceRange.max) : Infinity;
+                    const matchPrice = product.price >= minP && product.price <= maxP;
+                    
+                    return matchSearch && matchCategory && matchSubject && matchPrice;
+                });
+            }, [searchQuery, activeCategory, selectedSubject, priceRange, products]);
+
+            const handleScrollToFeatured = (e) => {
+                if(e) e.preventDefault();
+                if (featuredSectionRef.current) {
+                    const offset = 100; 
+                    const bodyRect = document.body.getBoundingClientRect().top;
+                    const elementRect = featuredSectionRef.current.getBoundingClientRect().top;
+                    const elementPosition = elementRect - bodyRect;
+                    const offsetPosition = elementPosition - offset;
+                    window.scrollTo({ top: offsetPosition, behavior: 'smooth' });
+                }
+            };
+
+            const openPurchase = (product) => {
+                // RÀNG BUỘC ĐĂNG NHẬP: Kiểm tra xem user đã đăng nhập chưa
+                if (!currentUser) {
+                    setIsLoginModalOpen(true);
+                    return; // Ngưng thực thi nếu chưa đăng nhập
+                }
+
+                setSelectedProduct(product);
+                setIsModalOpen(true);
+                setStep(1);
+                if (!product) setNewItem({ title: '', cat: 'Sách', price: '', status: 'Như mới', image: null });
+            };
+
+            const openProfile = (e) => {
+                e.preventDefault();
+                if (currentUser) setIsProfileModalOpen(true);
+                else setIsLoginModalOpen(true);
+            };
+
+            const closeModal = () => { setIsModalOpen(false); setStep(1); };
+            const nextStep = () => setStep(prev => Math.min(prev + 1, 4));
+            const prevStep = () => setStep(prev => Math.max(prev - 1, 1));
+            const isBuyerMode = !!selectedProduct;
+
+            const handleImageUpload = (e) => {
+                const file = e.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onloadend = () => setNewItem({ ...newItem, image: reader.result });
+                    reader.readAsDataURL(file);
+                }
+            };
+
+            const handleCompleteTransaction = () => {
+                if (!isBuyerMode && newItem.title) {
+                    const priceValue = newItem.price === '' ? 0 : parseInt(newItem.price.replace(/[^0-9]/g, ''));
+                    const newProduct = {
+                        id: Date.now(),
+                        title: newItem.title,
+                        price: isNaN(priceValue) ? 0 : priceValue,
+                        status: newItem.status,
+                        seller: currentUser ? currentUser.name : "Sinh viên Ẩn danh",
+                        image: newItem.image || "https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=500&q=80",
+                        cat: newItem.cat,
+                        subject: ""
+                    };
+                    setProducts([newProduct, ...products]);
+                }
+                closeModal();
+            };
+
+            const handleLogin = (e) => {
+                e.preventDefault();
+                if (loginData.username === '2521001190' && loginData.password === '2521001190') {
+                    setCurrentUser({ 
+                        id: '2521001190', name: 'Lê Minh Thái', dob: '24/01/2007', pob: 'Tỉnh Lâm Đồng',
+                        gender: 'Nam', idNo: '068207001966', class: '25DLH01'
+                    });
+                    setIsLoginModalOpen(false);
+                    setLoginError('');
+                    setLoginData({ username: '', password: '' });
+                } else {
+                    setLoginError('MSSV hoặc mật khẩu không đúng!');
+                }
+            };
+
+            return (
+                <div className="min-h-screen pb-20">
+                    {/* Header */}
+                    <header className="sticky top-0 z-40 bg-white/90 backdrop-blur-md border-b border-slate-200 shadow-sm">
+                        <div className="max-w-7xl mx-auto px-4 h-20 flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                                <div className="w-12 h-12 bg-blue-700 rounded-2xl flex items-center justify-center text-white font-extrabold italic shadow-lg shadow-blue-200">U</div>
+                                <div className="hidden sm:block">
+                                    <h1 className="text-xl font-bold text-slate-900 leading-none tracking-tight">Share-Station</h1>
+                                    <p className="text-[10px] text-blue-600 font-bold tracking-[0.2em] uppercase mt-1">UFM Smart Hub</p>
+                                </div>
+                            </div>
+                            <nav className="hidden md:flex gap-8 text-sm font-bold text-slate-500 uppercase tracking-wide">
+                                <a href="#" className="hover:text-blue-600 transition-colors">Trang chủ</a>
+                                <a href="#" onClick={handleScrollToFeatured} className="hover:text-blue-600 transition-colors">Khám phá</a>
+                                <a href="#" onClick={() => openPurchase(null)} className="hover:text-blue-600 transition-colors">Đăng bài</a>
+                                <a href="#" onClick={openProfile} className={isProfileModalOpen ? "text-blue-600" : "hover:text-blue-600 transition-colors"}>Hồ sơ</a>
+                            </nav>
+                            {currentUser ? (
+                                <div className="flex items-center gap-3 bg-white border border-slate-200 pl-4 pr-1.5 py-1.5 rounded-full shadow-sm animate-fade-in transition-all hover:border-blue-300">
+                                    <div className="flex flex-col items-end cursor-pointer" onClick={() => setIsProfileModalOpen(true)}>
+                                        <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest leading-none mb-1">Sinh viên</span>
+                                        <span className="text-sm font-extrabold text-blue-700 leading-none">{currentUser.name}</span>
+                                    </div>
+                                    <div className="w-9 h-9 bg-blue-100 rounded-full flex items-center justify-center text-blue-700 font-bold border border-blue-200 shadow-inner cursor-pointer" onClick={() => setIsProfileModalOpen(true)}>
+                                        {currentUser.name.split(' ').pop().charAt(0)}
+                                    </div>
+                                    <button onClick={() => setCurrentUser(null)} className="w-9 h-9 bg-slate-50 hover:bg-red-50 hover:text-red-500 text-slate-400 rounded-full flex items-center justify-center transition-all ml-1" title="Đăng xuất"><IconLogOut size={16} /></button>
+                                </div>
+                            ) : (
+                                <button onClick={() => setIsLoginModalOpen(true)} className="bg-slate-900 text-white px-8 py-3 rounded-full font-bold shadow-xl hover:bg-blue-700 hover:-translate-y-0.5 transition-all">Đăng nhập</button>
+                            )}
+                        </div>
+                    </header>
+
+                    {/* Hero Section */}
+                    <section className="max-w-7xl mx-auto px-4 mt-6">
+                        <div className="relative rounded-[3.5rem] overflow-hidden shadow-2xl bg-blue-900 min-h-[550px] md:min-h-[650px] flex items-center group">
+                            <div className="absolute inset-0">
+                                <img src="https://images.unsplash.com/photo-1523240795612-9a054b0db644?auto=format&fit=crop&q=80&w=2070" alt="Sinh viên UFM" className="w-full h-full object-cover opacity-50 group-hover:scale-105 transition-transform duration-1000" />
+                                <div className="absolute inset-0 bg-gradient-to-r from-blue-900 via-blue-900/80 to-transparent"></div>
+                                <div className="absolute inset-0 bg-gradient-to-t from-blue-900/40 to-transparent"></div>
+                            </div>
+                            <div className="relative z-10 w-full lg:w-2/3 p-10 md:p-20 text-white">
+                                <div className="inline-flex items-center gap-3 px-5 py-2.5 bg-white/10 border border-white/20 backdrop-blur-md rounded-full text-[10px] md:text-xs font-black uppercase tracking-[0.2em] mb-10">
+                                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                                    Cộng đồng chia sẻ học tập UFM
+                                </div>
+                                <h2 className="text-5xl md:text-7xl font-extrabold mb-8 leading-[1.05] tracking-tight">Kết nối & Trao <br/><span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-400 via-yellow-200 to-orange-300">Giá trị Học thuật</span></h2>
+                                <p className="text-lg md:text-2xl text-blue-50 opacity-90 mb-12 font-medium max-w-2xl leading-relaxed">Tiết kiệm chi phí, bảo vệ môi trường và kết nối bạn bè thông qua hệ thống tủ đồ tự động <strong className="text-white border-b-2 border-orange-400">Share-Station 24/7</strong>.</p>
+                                <div className="flex flex-wrap gap-5">
+                                    <button onClick={() => openPurchase(null)} className="bg-orange-500 hover:bg-orange-600 text-white px-10 py-5 rounded-3xl font-extrabold text-lg shadow-2xl shadow-orange-500/40 transition-all active:scale-95 flex items-center gap-4">Đăng đồ ngay <IconArrowRight /></button>
+                                    <button onClick={handleScrollToFeatured} className="px-10 py-5 rounded-3xl font-extrabold text-lg backdrop-blur-xl transition-all flex items-center gap-4 border-2 shadow-xl bg-white/10 border-white/30 text-white hover:bg-white/20">
+                                        <IconSearch /> Khám phá đồ
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    {/* Search & Filter System */}
+                    <section className="max-w-7xl mx-auto px-4 mt-20">
+                        <div className="flex flex-col xl:flex-row gap-8 items-stretch justify-between mb-16">
+                            <div className="relative flex-1 group">
+                                <div className="absolute left-7 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-500 transition-colors"><IconSearch /></div>
+                                <input type="text" placeholder="Tìm kiếm tài liệu học tập..." className="w-full pl-16 pr-8 py-6 bg-white border-2 border-slate-100 rounded-[2rem] focus:outline-none focus:border-blue-500 shadow-2xl shadow-slate-200/40 text-lg font-medium transition-all" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
+                                {searchQuery && <button onClick={() => setSearchQuery('')} className="absolute right-8 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"><IconX size={20} /></button>}
+                            </div>
+                            
+                            <div className="flex flex-col md:flex-row gap-4 items-center">
+                                <div className="relative w-full md:w-64">
+                                    <select 
+                                        className="w-full appearance-none px-6 py-6 bg-white border-2 border-slate-100 rounded-[2rem] font-bold text-slate-600 outline-none focus:border-blue-500 shadow-xl shadow-slate-200/40 cursor-pointer"
+                                        value={selectedSubject}
+                                        onChange={(e) => setSelectedSubject(e.target.value)}
+                                    >
+                                        {subjects.map(s => <option key={s} value={s}>{s}</option>)}
+                                    </select>
+                                    <div className="absolute right-6 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400"><IconChevron /></div>
+                                </div>
+
+                                <div className="flex items-center gap-3 bg-white border-2 border-slate-100 rounded-[2rem] px-6 py-2 shadow-xl shadow-slate-200/40">
+                                    <span className="text-xs font-black text-slate-400 uppercase tracking-widest whitespace-nowrap">Giá từ:</span>
+                                    <input 
+                                        type="number" 
+                                        placeholder="0" 
+                                        className="w-20 py-2 outline-none font-bold text-blue-600 bg-transparent"
+                                        value={priceRange.min}
+                                        onChange={(e) => setPriceRange({...priceRange, min: e.target.value})}
+                                    />
+                                    <span className="text-slate-200">|</span>
+                                    <span className="text-xs font-black text-slate-400 uppercase tracking-widest whitespace-nowrap">Đến:</span>
+                                    <input 
+                                        type="number" 
+                                        placeholder="1tr+" 
+                                        className="w-24 py-2 outline-none font-bold text-blue-600 bg-transparent"
+                                        value={priceRange.max}
+                                        onChange={(e) => setPriceRange({...priceRange, max: e.target.value})}
+                                    />
+                                </div>
+                                
+                                {(selectedSubject !== 'Tất cả môn học' || priceRange.min !== '' || priceRange.max !== '') && (
+                                    <button 
+                                        onClick={() => {setSelectedSubject('Tất cả môn học'); setPriceRange({min:'', max:''})}}
+                                        className="p-4 bg-red-50 text-red-500 rounded-full hover:bg-red-100 transition-colors"
+                                        title="Xóa lọc"
+                                    >
+                                        <IconX size={20} />
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Category Quick Filter */}
+                        <div className="grid grid-cols-2 lg:grid-cols-4 gap-8 mb-20">
+                            {[
+                                { label: "Sách & Giáo trình", catValue: "Sách", icon: <IconBook />, color: "text-orange-600", bg: "bg-orange-50" },
+                                { label: "Dụng cụ kỹ thuật", catValue: "Dụng cụ", icon: <IconTool />, color: "text-blue-600", bg: "bg-blue-50" },
+                                { label: "Tài liệu photo", catValue: "Tài liệu", icon: <IconBook />, color: "text-emerald-600", bg: "bg-emerald-50" },
+                                { label: "Đồ dùng khác", catValue: "Tặng", icon: <IconTool />, color: "text-purple-600", bg: "bg-purple-50" },
+                            ].map(c => {
+                                const isActive = activeCategory === c.catValue;
+                                return (
+                                <div key={c.label} onClick={() => setActiveCategory(isActive ? 'All' : c.catValue)} 
+                                     className={`group p-8 bg-white border-2 ${isActive ? 'border-blue-500 shadow-2xl shadow-blue-500/20' : 'border-slate-50 shadow-sm'} rounded-[3rem] hover:shadow-2xl hover:shadow-blue-500/10 transition-all cursor-pointer flex flex-col items-center text-center gap-5`}>
+                                    <div className={`p-7 rounded-[2rem] ${isActive ? 'bg-blue-600 text-white shadow-xl shadow-blue-400/50' : c.bg + ' ' + c.color} group-hover:scale-110 transition-all duration-500`}>{c.icon}</div>
+                                    <span className={`font-black text-lg ${isActive ? 'text-blue-700' : 'text-slate-700'}`}>{c.label}</span>
+                                </div>
+                            )})}
+                        </div>
+                    </section>
+
+                    {/* Products Grid */}
+                    <section className="max-w-7xl mx-auto px-4 mb-32" id="products-grid">
+                        <div className="flex items-center justify-between mb-12 flex-wrap gap-4" ref={featuredSectionRef}>
+                            <h3 className="text-3xl md:text-4xl font-extrabold text-slate-900 flex items-center gap-5">
+                                <span className="relative">
+                                    Sản phẩm nổi bật
+                                    <span className="absolute -bottom-2 left-0 w-1/2 h-1.5 bg-blue-600 rounded-full"></span>
+                                </span>
+                            </h3>
+                            { (searchQuery || activeCategory !== 'All' || selectedSubject !== 'Tất cả môn học') && (
+                                <button onClick={() => {setSearchQuery(''); setActiveCategory('All'); setSelectedSubject('Tất cả môn học'); setPriceRange({min:'',max:''})}} className="text-blue-600 font-bold hover:underline text-sm uppercase tracking-widest">Xóa tất cả lọc</button>
+                            )}
+                        </div>
+                        
+                        {filteredProducts.length > 0 ? (
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-10">
+                                {filteredProducts.map(p => (
+                                    <div key={p.id} onClick={() => openPurchase(p)} className="product-frame group rounded-[3rem] overflow-hidden flex flex-col relative animate-fade-in p-4 cursor-pointer">
+                                        <div className="relative aspect-[4/5] overflow-hidden bg-slate-50 rounded-[2.2rem]">
+                                            <img src={p.image} alt={p.title} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
+                                            <div className="absolute top-5 left-5 px-4 py-1.5 bg-white/95 backdrop-blur-md shadow-lg rounded-xl text-[10px] font-black text-blue-800 uppercase tracking-[0.15em]">{p.status}</div>
+                                            <div className="absolute inset-x-4 bottom-5 opacity-0 translate-y-6 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-500 ease-out">
+                                                <button className="w-full bg-blue-600 text-white font-black py-4 rounded-2xl shadow-2xl shadow-blue-600/30 hover:bg-blue-700">MUA NGAY</button>
+                                            </div>
+                                        </div>
+                                        <div className="px-4 py-6 flex-1 flex flex-col">
+                                            <div className="flex items-center gap-2 mb-3">
+                                                <span className="text-[11px] font-black text-blue-500/60 uppercase tracking-widest">{p.cat}</span>
+                                                <span className="w-1 h-1 bg-slate-300 rounded-full"></span>
+                                                <span className="text-[11px] font-bold text-slate-400 truncate max-w-[100px]">{p.subject || "Dụng cụ"}</span>
+                                            </div>
+                                            <h4 className="font-extrabold text-slate-900 text-xl mb-3 line-clamp-1 group-hover:text-blue-600 transition-colors">{p.title}</h4>
+                                            <p className="text-orange-600 font-black text-2xl mb-8">{p.price === 0 ? "MIỄN PHÍ" : `${p.price.toLocaleString('vi-VN')} VNĐ`}</p>
+                                            <div className="mt-auto pt-5 border-t border-slate-100 flex items-center justify-between">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="w-10 h-10 bg-blue-50 rounded-2xl flex items-center justify-center text-blue-600 border border-blue-100"><IconUser size={18}/></div>
+                                                    <div>
+                                                        <p className="text-[10px] text-slate-400 font-bold uppercase leading-none mb-1">Người đăng</p>
+                                                        <p className="text-xs font-black text-slate-700 truncate max-w-[100px] leading-none">{p.seller}</p>
+                                                    </div>
+                                                </div>
+                                                <div className="text-blue-300 group-hover:text-blue-600 transition-colors"><IconArrowRight /></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        ) : (
+                            <div className="text-center py-32 bg-white rounded-[4rem] border-4 border-dashed border-slate-100 shadow-inner">
+                                <div className="text-slate-200 mb-6 flex justify-center scale-150"><IconSearch size={48} /></div>
+                                <h4 className="text-2xl font-black text-slate-600">Không tìm thấy món đồ phù hợp</h4>
+                                <p className="text-slate-400 mt-3 font-medium">Hãy thử thay đổi bộ lọc hoặc khoảng giá nhé!</p>
+                                <button onClick={() => {setSearchQuery(''); setActiveCategory('All'); setSelectedSubject('Tất cả môn học'); setPriceRange({min:'',max:''})}} className="mt-10 px-10 py-4 bg-blue-600 text-white rounded-2xl font-black shadow-2xl shadow-blue-600/30 hover:bg-blue-700 transition-all">Làm mới bộ lọc</button>
+                            </div>
+                        )}
+                    </section>
+
+                    {/* MODALS: ĐĂNG TIN & GIAO DỊCH (Đã được làm nhỏ gọn) */}
+                    {isModalOpen && (
+                        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                            <div className="absolute inset-0 bg-slate-900/80 backdrop-blur-md" onClick={closeModal}></div>
+                            {/* Chuyển max-w-5xl thành max-w-3xl, bo góc nhỏ hơn */}
+                            <div className="relative bg-white w-full max-w-3xl rounded-[2rem] shadow-[0_50px_100px_-15px_rgba(0,0,0,0.5)] overflow-y-auto max-h-[95vh] modal-animate flex flex-col">
+                                
+                                {/* Header Modal */}
+                                <div className="p-6 md:p-8 flex flex-col items-center border-b border-slate-50 relative shrink-0">
+                                    <button onClick={closeModal} className="absolute top-6 right-6 p-2 hover:bg-slate-100 rounded-xl transition-all z-10 text-slate-400 hover:text-slate-900 hover:rotate-90"><IconX size={20}/></button>
+                                    <h2 className="text-2xl font-black text-blue-900 mb-2 uppercase tracking-tight">{isBuyerMode ? "XÁC NHẬN NHẬN ĐỒ" : "QUY TRÌNH ĐĂNG TIN"}</h2>
+                                    <p className="text-slate-400 text-xs font-bold italic mb-6 tracking-widest">HỆ THỐNG SHARE-STATION UFM</p>
+                                    
+                                    {/* Progress Bar Gọn Hơn */}
+                                    <div className="flex items-center justify-between w-full max-w-md px-6 relative">
+                                        <div className="absolute top-1/2 -translate-y-1/2 left-0 w-full h-1.5 bg-slate-100 -z-10 rounded-full">
+                                            <div className="h-full bg-blue-600 transition-all duration-1000 rounded-full shadow-[0_0_10px_rgba(37,99,235,0.4)]" style={{width: `${((step-1)/3)*100}%`}}></div>
+                                        </div>
+                                        {[1, 2, 3, 4].map(s => (
+                                            <div key={s} className="bg-white px-2">
+                                                <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-black text-base transition-all duration-500 ${s <= step ? 'bg-blue-600 text-white shadow-lg shadow-blue-400/50 scale-110' : 'bg-white border-2 border-slate-100 text-slate-300'}`}>{s < step ? <IconCheck size={16}/> : s}</div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                {/* Body Modal */}
+                                <div className="p-6 md:p-8 flex flex-col md:flex-row gap-8">
+                                    {isBuyerMode && (
+                                        <div className="w-full md:w-1/3 shrink-0 flex flex-col gap-4 md:border-r border-slate-100 md:pr-6 animate-fade-in">
+                                            <div className="aspect-[4/5] rounded-2xl overflow-hidden shadow-lg bg-slate-100 border-4 border-white"><img src={selectedProduct.image} className="w-full h-full object-cover" /></div>
+                                            <div>
+                                                <span className="text-[10px] font-black text-blue-500 uppercase tracking-[0.2em] mb-1 block">{selectedProduct.cat}</span>
+                                                <h3 className="text-lg font-black text-slate-900 leading-tight mb-2 line-clamp-2">{selectedProduct.title}</h3>
+                                                <div className="flex items-baseline gap-2">
+                                                    <p className="text-xl font-black text-orange-600 tracking-tighter">{selectedProduct.price === 0 ? "MIỄN PHÍ" : `${selectedProduct.price.toLocaleString('vi-VN')} đ`}</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    <div className={`w-full ${isBuyerMode ? 'md:w-2/3' : 'max-w-2xl mx-auto'} flex flex-col justify-center min-h-[300px]`}>
+                                        
+                                        {step === 1 && (
+                                            isBuyerMode ? (
+                                                <div className="text-center md:text-left animate-fade-in">
+                                                    <span className="px-3 py-1.5 bg-blue-50 text-blue-700 rounded-lg text-[10px] font-black mb-4 inline-block tracking-widest uppercase">BƯỚC 1: XÁC NHẬN</span>
+                                                    <h3 className="text-2xl font-black text-slate-900 mb-3">Sẵn sàng nhận đồ?</h3>
+                                                    <p className="text-slate-500 mb-8 text-sm font-medium leading-relaxed">Bạn đang tiến hành lấy <strong>"{selectedProduct.title}"</strong> từ Share-Station. Một mã giao dịch bảo mật sẽ được khởi tạo riêng.</p>
+                                                    <button onClick={nextStep} className="bg-blue-600 text-white px-6 py-3.5 rounded-xl font-black text-sm flex items-center justify-center md:justify-start gap-3 shadow-lg shadow-blue-600/30 hover:bg-blue-700 hover:-translate-y-1 transition-all mx-auto md:mx-0">TẠO MÃ NHẬN HÀNG <IconArrowRight /></button>
+                                                </div>
+                                            ) : (
+                                                <div className="flex flex-col md:flex-row items-start gap-8 animate-fade-in">
+                                                    <div className="w-full md:w-1/2 space-y-4">
+                                                        <h3 className="text-xl font-black text-blue-900 mb-4 leading-tight">Thông tin <br/><span className="text-slate-400 text-sm font-bold italic tracking-normal">Gửi đến UFMers</span></h3>
+                                                        <div className="space-y-1.5">
+                                                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Tên món đồ *</label>
+                                                            <input type="text" placeholder="Nhập tên..." className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:border-blue-500 focus:bg-white outline-none font-bold text-sm transition-all" value={newItem.title} onChange={e => setNewItem({...newItem, title: e.target.value})} />
+                                                        </div>
+                                                        <div className="grid grid-cols-2 gap-3">
+                                                            <div className="space-y-1.5">
+                                                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Danh mục</label>
+                                                                <select className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none font-bold text-xs text-slate-600 focus:border-blue-500" value={newItem.cat} onChange={e => setNewItem({...newItem, cat: e.target.value})}><option>Sách</option><option>Dụng cụ</option><option>Tài liệu</option><option>Tặng</option></select>
+                                                            </div>
+                                                            <div className="space-y-1.5">
+                                                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Tình trạng</label>
+                                                                <select className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none font-bold text-xs text-slate-600 focus:border-blue-500" value={newItem.status} onChange={e => setNewItem({...newItem, status: e.target.value})}><option>Mới 100%</option><option>Như mới</option><option>Đã dùng</option></select>
+                                                            </div>
+                                                        </div>
+                                                        <div className="space-y-1.5">
+                                                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Giá bán (VNĐ)</label>
+                                                            <input type="number" placeholder="Để trống nếu Tặng" className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none font-bold text-sm focus:border-blue-500" value={newItem.price} onChange={e => setNewItem({...newItem, price: e.target.value})} />
+                                                        </div>
+                                                    </div>
+                                                    <div className="w-full md:w-1/2 flex flex-col">
+                                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Ảnh thực tế</label>
+                                                        <div className="aspect-[4/3] bg-slate-50 border-2 border-dashed border-slate-200 rounded-2xl flex flex-col items-center justify-center text-slate-400 relative overflow-hidden group hover:border-blue-300 transition-all cursor-pointer">
+                                                            {newItem.image ? <img src={newItem.image} className="w-full h-full object-cover" /> : <><IconCamera className="mb-2" /><span className="font-bold text-xs">TẢI ẢNH LÊN</span></>}
+                                                            <input type="file" accept="image/*" className="absolute inset-0 opacity-0 cursor-pointer" onChange={handleImageUpload} />
+                                                        </div>
+                                                        <button onClick={nextStep} disabled={!newItem.title} className={`w-full mt-6 py-3 rounded-xl font-black text-sm flex items-center justify-center gap-2 transition-all ${newItem.title ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/30 hover:-translate-y-0.5' : 'bg-slate-100 text-slate-400 cursor-not-allowed'}`}>TIẾP TỤC <IconArrowRight /></button>
+                                                    </div>
+                                                </div>
+                                            )
+                                        )}
+
+                                        {step === 2 && (
+                                            <div className="flex flex-col md:flex-row items-center gap-8 animate-fade-in justify-center">
+                                                <div className="w-48 h-48 bg-slate-900 rounded-3xl border-8 border-slate-800 flex items-center justify-center shrink-0 shadow-xl relative">
+                                                    <div className="absolute -top-3 -right-3 w-8 h-8 bg-orange-500 rounded-lg flex items-center justify-center text-white font-black text-[10px]">QR</div>
+                                                    <IconQrCode className="text-white opacity-90" size={100} />
+                                                </div>
+                                                <div className="text-center md:text-left max-w-sm">
+                                                    <span className="px-3 py-1.5 bg-emerald-50 text-emerald-700 rounded-lg text-[10px] font-black mb-3 inline-block tracking-widest uppercase">BƯỚC 2: MÃ TRUY CẬP</span>
+                                                    <h3 className="text-xl font-black text-slate-900 mb-3">{isBuyerMode ? "Mã QR nhận hàng" : "Mã mở tủ đăng tin"}</h3>
+                                                    <p className="text-slate-500 mb-6 text-sm font-medium">{isBuyerMode ? "Hãy đến trạm Share-Station gần nhất và quét mã QR này để mở ngăn chứa." : `Đã cấp phát 1 ngăn tủ trống. Mang đồ đến trạm và quét mã để đăng.`}</p>
+                                                    <div className="flex gap-3 justify-center md:justify-start">
+                                                        <button onClick={prevStep} className="px-5 py-2.5 border border-slate-200 rounded-xl font-bold text-sm text-slate-500 hover:bg-slate-50 transition-all">QUAY LẠI</button>
+                                                        <button onClick={nextStep} className="bg-blue-600 text-white px-5 py-2.5 rounded-xl font-black text-sm flex items-center gap-2 shadow-lg shadow-blue-600/30 hover:bg-blue-700 transition-all">KẾ TIẾP <IconArrowRight /></button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {step === 3 && (
+                                            <div className="flex flex-col md:flex-row items-center gap-8 animate-fade-in justify-center">
+                                                <div className="w-56 bg-blue-900 rounded-3xl border-8 border-slate-800 p-6 shrink-0 shadow-xl">
+                                                    <div className="flex gap-1.5 mb-5">{[6,6,6,7].map((n, i) => <div key={i} className="flex-1 aspect-[3/4] bg-white/20 rounded-lg flex items-center justify-center text-white font-black text-xl shadow-inner">{n}</div>)}</div>
+                                                    <div className="grid grid-cols-3 gap-1.5 w-full">{[1,2,3,4,5,6,7,8,9].map(n => <div key={n} className="aspect-square bg-white/10 rounded-lg flex items-center justify-center text-white text-[10px] font-black">{n}</div>)}</div>
+                                                </div>
+                                                <div className="text-center md:text-left max-w-sm">
+                                                    <span className="px-3 py-1.5 bg-purple-50 text-purple-700 rounded-lg text-[10px] font-black mb-3 inline-block tracking-widest uppercase">BƯỚC 3: KIỂM TRA</span>
+                                                    <h3 className="text-xl font-black text-slate-900 mb-3">Mã PIN dự phòng</h3>
+                                                    <p className="text-slate-500 mb-6 text-sm font-medium">{isBuyerMode ? "Bạn có thể nhập PIN 6667 trực tiếp tại màn hình tủ nếu không dùng QR. Nhớ kiểm tra kỹ nhé." : "Bỏ đồ vào tủ và đóng cửa chặt. Hệ thống sẽ tự động nhắn mã cho người mua."}</p>
+                                                    <div className="flex gap-3 justify-center md:justify-start">
+                                                        <button onClick={prevStep} className="px-5 py-2.5 border border-slate-200 rounded-xl font-bold text-sm text-slate-500 hover:bg-slate-50">QUAY LẠI</button>
+                                                        <button onClick={nextStep} className="bg-blue-600 text-white px-5 py-2.5 rounded-xl font-black text-sm flex items-center gap-2 shadow-lg hover:bg-blue-700">XÁC NHẬN <IconArrowRight /></button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {step === 4 && (
+                                            <div className="flex flex-col items-center text-center animate-fade-in w-full max-w-sm mx-auto">
+                                                <div className="w-full bg-slate-50 border-2 border-white shadow-lg rounded-3xl p-8 mb-6 mt-4 relative">
+                                                    <div className="absolute -top-6 left-1/2 -translate-x-1/2 w-12 h-12 bg-emerald-500 rounded-xl flex items-center justify-center text-white shadow-lg shadow-emerald-500/40 animate-bounce"><IconCheck size={24}/></div>
+                                                    <div className="flex gap-2 justify-center mb-6 mt-4 text-orange-400">
+                                                        {[1,2,3,4,5].map(i => <IconStar key={i} fill="currentColor" size={24} />)}
+                                                    </div>
+                                                    <button onClick={handleCompleteTransaction} className="w-full py-3.5 bg-orange-500 text-white rounded-xl font-black text-sm uppercase tracking-widest shadow-lg shadow-orange-500/40 hover:bg-orange-600 transition-all hover:scale-105 active:scale-95">HOÀN TẤT GIAO DỊCH</button>
+                                                </div>
+                                                <h3 className="text-2xl font-black text-slate-900 mb-2">Tuyệt vời!</h3>
+                                                <p className="text-slate-500 text-sm font-medium">Cảm ơn bạn đã đồng hành cùng Share-Station.</p>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                                {/* Footer Modal thu gọn */}
+                                <div className="bg-slate-900 py-4 mt-auto flex justify-center gap-8 text-white text-[9px] font-black uppercase tracking-[0.2em] rounded-b-[2rem]">
+                                    <div className="flex items-center gap-2"><IconCheck size={14}/><span className="opacity-80">AN TOÀN</span></div>
+                                    <div className="flex items-center gap-2"><IconCheck size={14}/><span className="opacity-80">NHANH CHÓNG</span></div>
+                                    <div className="flex items-center gap-2"><IconCheck size={14}/><span className="opacity-80">MINH BẠCH</span></div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* MODAL: ĐĂNG NHẬP */}
+                    {isLoginModalOpen && (
+                        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+                            <div className="absolute inset-0 bg-slate-900/90 backdrop-blur-xl" onClick={() => setIsLoginModalOpen(false)}></div>
+                            <div className="relative bg-white w-full max-w-md rounded-[3.5rem] shadow-2xl p-12 modal-animate border-4 border-slate-50">
+                                <button onClick={() => setIsLoginModalOpen(false)} className="absolute top-8 right-8 p-3 text-slate-400 hover:text-slate-900 transition-all"><IconX size={24} /></button>
+                                <div className="flex flex-col items-center mb-10">
+                                    <div className="w-20 h-20 bg-blue-700 rounded-[2rem] flex items-center justify-center text-white font-black italic text-4xl mb-6 shadow-2xl shadow-blue-200">U</div>
+                                    <h2 className="text-3xl font-black text-slate-900">UFM Login</h2>
+                                    <p className="text-slate-400 text-sm text-center mt-3 font-bold tracking-widest uppercase">Đăng nhập để giao dịch</p>
+                                </div>
+                                <form onSubmit={handleLogin} className="space-y-6">
+                                    <div className="space-y-2">
+                                        <input type="text" placeholder="Mã số sinh viên (VD: 2521001190)" className="w-full px-6 py-5 bg-slate-50 border-2 border-slate-100 rounded-2xl outline-none focus:border-blue-500 font-bold text-lg transition-all" value={loginData.username} onChange={e => setLoginData({...loginData, username: e.target.value})} required />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <input type="password" placeholder="Mật khẩu" className="w-full px-6 py-5 bg-slate-50 border-2 border-slate-100 rounded-2xl outline-none focus:border-blue-500 font-bold text-lg transition-all" value={loginData.password} onChange={e => setLoginData({...loginData, password: e.target.value})} required />
+                                    </div>
+                                    {loginError && <div className="text-red-600 text-sm font-black bg-red-50 p-4 rounded-2xl text-center animate-shake border border-red-100">{loginError}</div>}
+                                    <button type="submit" className="w-full bg-blue-600 text-white py-5 rounded-2xl font-black text-xl shadow-2xl shadow-blue-600/30 hover:bg-blue-700 transition-all active:scale-95">ĐĂNG NHẬP NGAY</button>
+                                </form>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* MODAL: HỒ SƠ SINH VIÊN */}
+                    {isProfileModalOpen && currentUser && (
+                        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
+                            <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setIsProfileModalOpen(false)}></div>
+                            <div className="relative bg-[#f4f7fa] w-full max-w-lg rounded-xl shadow-2xl overflow-hidden modal-animate border border-slate-200">
+                                <div className="bg-white border-b border-slate-200 p-4 flex items-center justify-between">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white">
+                                            <IconChevron dir="right" size={16} />
+                                        </div>
+                                        <h2 className="text-[#00428d] font-bold text-xl uppercase tracking-tight">Thông tin sinh viên</h2>
+                                    </div>
+                                    <button onClick={() => setIsProfileModalOpen(false)} className="text-slate-400 hover:text-slate-900 transition-all"><IconX size={20} /></button>
+                                </div>
+
+                                <div className="p-4 space-y-4">
+                                    <div className="bg-white rounded-lg border border-slate-200 p-8 flex flex-col items-center shadow-sm">
+                                        <div className="w-32 h-32 bg-slate-100 rounded-full border-4 border-slate-50 flex items-center justify-center text-slate-300 mb-4 overflow-hidden relative group">
+                                            <IconUser size={64} />
+                                            <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
+                                                <IconCamera className="text-white" />
+                                            </div>
+                                        </div>
+                                        <h3 className="text-[#00428d] font-bold text-lg">{currentUser.name}</h3>
+                                    </div>
+
+                                    <div className="rounded-lg overflow-hidden border border-slate-200 bg-white shadow-sm">
+                                        <div className="bg-[#7b99e5] p-3">
+                                            <h4 className="text-white font-bold uppercase text-sm tracking-wide">Thông tin chung</h4>
+                                        </div>
+                                        <table className="w-full text-sm">
+                                            <tbody>
+                                                {[
+                                                    { label: "Mã sinh viên", value: currentUser.id },
+                                                    { label: "Họ tên", value: currentUser.name },
+                                                    { label: "Ngày sinh", value: currentUser.dob },
+                                                    { label: "Nơi sinh", value: currentUser.pob },
+                                                    { label: "Giới tính", value: currentUser.gender },
+                                                    { label: "CMND/CCCD", value: currentUser.idNo },
+                                                    { label: "Lớp sinh viên", value: currentUser.class },
+                                                ].map((row, idx) => (
+                                                    <tr key={idx} className="border-t border-slate-100">
+                                                        <td className="p-3 font-bold text-slate-700 w-1/3 bg-slate-50/50">{row.label}</td>
+                                                        <td className="p-3 text-slate-500">{row.value}</td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+
+                                    <button 
+                                        onClick={() => setCurrentUser(null) || setIsProfileModalOpen(false)}
+                                        className="w-full py-3 bg-white border border-red-200 text-red-500 rounded-lg font-bold hover:bg-red-50 transition-all flex items-center justify-center gap-2"
+                                    >
+                                        <IconLogOut size={16} /> Đăng xuất tài khoản
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Footer */}
+                    <footer className="mt-40 bg-white border-t border-slate-200 py-32 rounded-t-[4rem]">
+                        <div className="max-w-7xl mx-auto px-4 grid grid-cols-1 md:grid-cols-3 gap-24">
+                            <div className="space-y-8 text-center md:text-left">
+                                <div className="flex items-center justify-center md:justify-start gap-4">
+                                    <div className="w-12 h-12 bg-blue-700 rounded-2xl flex items-center justify-center text-white font-black italic shadow-xl">U</div>
+                                    <span className="text-3xl font-black text-slate-900 tracking-tighter">Share-Station</span>
+                                </div>
+                                <p className="text-slate-400 font-bold leading-relaxed">Vì một cộng đồng sinh viên UFM kết nối và bền vững thông qua việc chia sẻ tài nguyên học tập một cách thông minh.</p>
+                            </div>
+                            <div className="flex flex-col items-center gap-6">
+                                <h5 className="font-black text-slate-900 uppercase text-xs tracking-[0.3em]">Hệ sinh thái</h5>
+                                <div className="flex flex-col gap-4 items-center text-slate-500 font-bold">
+                                    <a href="#" className="hover:text-blue-600 transition-colors">Điều khoản dịch vụ</a>
+                                    <a href="#" className="hover:text-blue-600 transition-colors">Chính sách bảo mật</a>
+                                    <a href="#" className="hover:text-blue-600 transition-colors">Hướng dẫn sử dụng tủ đồ</a>
+                                </div>
+                            </div>
+                            <div className="flex flex-col items-center md:items-end gap-8 text-center md:text-right">
+                                <h5 className="font-black text-slate-900 uppercase text-xs tracking-[0.3em]">Bản quyền</h5>
+                                <p className="text-slate-400 font-black text-sm">© 2024 UFM Share-Station Team. <br/><span className="font-medium">Phát triển bởi CLB Công nghệ UFM.</span></p>
+                            </div>
+                        </div>
+                    </footer>
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
